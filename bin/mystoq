@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Mystoq CLI - https://mystoq.com
+set -euo pipefail
+
+VERSION="0.1.0"
+API_BASE="${MYSTOQ_API_BASE:-https://api.mystoq.com/v1}"
+
+usage() {
+  cat <<EOF
+mystoq $VERSION  -  Mystoq command-line tool
+
+Usage:
+  mystoq products list                    list products
+  mystoq orders list                      list orders
+  mystoq wilayas                          list Algerian wilayas
+  mystoq ping                             health-check the API
+  mystoq help                             show this help
+
+Environment:
+  MYSTOQ_API_KEY     your Mystoq API key (required for authed calls)
+  MYSTOQ_TENANT      your tenant slug (e.g. "demo")
+  MYSTOQ_API_BASE    override the API base URL
+
+Docs: https://mystoq.com
+EOF
+}
+
+call() {
+  local method="$1" path="$2"
+  local headers=("-H" "Authorization: Bearer ${MYSTOQ_API_KEY:-}")
+  headers+=("-H" "Accept: application/json")
+  [ -n "${MYSTOQ_TENANT:-}" ] && headers+=("-H" "X-Tenant-ID: ${MYSTOQ_TENANT}")
+  curl -fsSL -X "$method" "${headers[@]}" "${API_BASE}${path}"
+}
+
+cmd="${1:-help}"; shift || true
+case "$cmd" in
+  products)
+    sub="${1:-list}"; shift || true
+    [ "$sub" = "list" ] && call GET "/products" || { echo "unknown: $sub"; exit 2; }
+    ;;
+  orders)
+    sub="${1:-list}"; shift || true
+    [ "$sub" = "list" ] && call GET "/orders" || { echo "unknown: $sub"; exit 2; }
+    ;;
+  wilayas) call GET "/wilayas" ;;
+  ping)    curl -sf "https://mystoq.com/api/health" && echo OK ;;
+  -v|--version) echo "$VERSION" ;;
+  help|-h|--help) usage ;;
+  *) usage; exit 2 ;;
+esac
